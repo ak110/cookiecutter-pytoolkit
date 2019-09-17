@@ -1,7 +1,7 @@
 cookiecutter-pytoolkit
 ======================
 
-コンペなど用のテンプレート
+[pytoolkit](https://github.com/ak110/pytoolkit)のテンプレート
 
 Requirements
 ------------
