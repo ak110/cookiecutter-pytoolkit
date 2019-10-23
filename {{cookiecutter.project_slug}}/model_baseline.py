@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import functools
 import pathlib
-import typing
 
 import albumentations as A
 import numpy as np
@@ -15,7 +14,7 @@ train_shape = (320, 320, 3)
 predict_shape = (480, 480, 3)
 batch_size = 16
 nfold = 5
-split_seed = 2
+split_seed = 1
 models_dir = pathlib.Path(f"models/{pathlib.Path(__file__).stem}")
 app = tk.cli.App(output_dir=models_dir)
 logger = tk.log.get(__name__)
@@ -172,18 +171,6 @@ class MyModel(tk.pipeline.KerasModel):
         return loss, metrics
 
 
-def _tta(model, X_batch):
-    pred_list = tk.models.predict_on_batch_augmented(
-        model,
-        X_batch,
-        flip=(False, True),
-        crop_size=(3, 3),
-        padding_size=(32, 32),
-        padding_mode="edge",
-    )
-    return np.mean(pred_list, axis=0)
-
-
 class MyDataLoader(tk.data.DataLoader):
     """DataLoader"""
 
@@ -230,6 +217,18 @@ class MyDataLoader(tk.data.DataLoader):
             X, y = super().get_sample(data)
         X = tk.ndimage.preprocess_tf(X)
         return X, y
+
+
+def _tta(model, X_batch):
+    pred_list = tk.models.predict_on_batch_augmented(
+        model,
+        X_batch,
+        flip=(False, True),
+        crop_size=(3, 3),
+        padding_size=(32, 32),
+        padding_mode="edge",
+    )
+    return np.mean(pred_list, axis=0)
 
 
 if __name__ == "__main__":

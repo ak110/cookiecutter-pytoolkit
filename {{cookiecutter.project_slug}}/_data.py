@@ -7,6 +7,7 @@ import pandas as pd
 import pytoolkit as tk
 
 data_dir = pathlib.Path(f"data")
+cache_dir = pathlib.Path(f"cache")
 logger = tk.log.get(__name__)
 
 
@@ -15,6 +16,7 @@ def load_data():
     return load_train_data(), load_test_data()
 
 
+@tk.cache.memorize(cache_dir)
 def load_train_data():
     """訓練データの読み込み"""
     X_train = None  # TODO
@@ -22,6 +24,7 @@ def load_train_data():
     return tk.data.Dataset(X_train, y_train)
 
 
+@tk.cache.memorize(cache_dir)
 def load_test_data():
     """テストデータの読み込み"""
     X_test = None  # TODO
