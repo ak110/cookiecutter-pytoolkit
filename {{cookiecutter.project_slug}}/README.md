@@ -5,7 +5,6 @@
 ## data
 
 ```bash
-mkdir data
 kaggle competitions download -c xxxxxxxxxxxxxxxxxxxxxx -p data
 unzip data/train.csv.zip -d data/
 unzip data/test_images.zip -d data/test_images/
