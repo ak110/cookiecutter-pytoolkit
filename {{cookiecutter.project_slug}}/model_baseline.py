@@ -156,8 +156,10 @@ class MyModel(tk.pipeline.KerasModel):
 
     def create_optimizer(self, mode: str) -> tk.models.OptimizerType:
         base_lr = 1e-3 if mode != "refine" else 1e-5
-        lr = base_lr * batch_size * tk.hvd.size()
-        optimizer = tf.keras.optimizers.SGD(lr=lr, momentum=0.9, nesterov=True)
+        learning_rate = base_lr * batch_size * tk.hvd.size()
+        optimizer = tf.keras.optimizers.SGD(
+            learning_rate=learning_rate, momentum=0.9, nesterov=True
+        )
         return optimizer
 
     def create_loss(self, model: tf.keras.models.Model) -> tuple:
@@ -226,7 +228,7 @@ def _tta(model, X_batch):
         X_batch,
         flip=(False, True),
         crop_size=(3, 3),
-        padding_size=(32, 32),
+        padding_size=(16, 16),
         padding_mode="edge",
     )
     return np.mean(pred_list, axis=0)
