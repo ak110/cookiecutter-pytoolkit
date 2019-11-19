@@ -197,6 +197,7 @@ class MyDataLoader(tk.data.DataLoader):
 
     def get_data(self, dataset: tk.data.Dataset, index: int):
         X, y = dataset.get_data(index)
+        X = tk.ndimage.load(X)
         X = self.aug1(image=X)["image"]
         y = tf.keras.utils.to_categorical(y, num_classes) if y is not None else None
         return X, y
