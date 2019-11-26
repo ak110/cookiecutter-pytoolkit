@@ -218,7 +218,7 @@ def _tta(model, X_batch):
         model,
         X_batch,
         flip=(False, True),
-        crop_size=(3, 3),
+        crop_size=(5, 5),
         padding_size=(16, 16),
         padding_mode="edge",
     )
