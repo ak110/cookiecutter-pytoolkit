@@ -26,7 +26,7 @@ def check():
     create_model().check()
 
 
-@app.command(then="validate", use_horovod=True)
+@app.command(then="validate", distribute_strategy_fn=tf.distribute.MirroredStrategy)
 def train():
     train_set = _data.load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
@@ -35,7 +35,7 @@ def train():
     tk.notifications.post_evals(evals)
 
 
-@app.command(then="predict", use_horovod=True)
+@app.command(then="predict", distribute_strategy_fn=tf.distribute.MirroredStrategy)
 def validate():
     train_set = _data.load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
@@ -44,7 +44,7 @@ def validate():
     _data.save_oofp(models_dir, train_set, pred)
 
 
-@app.command(use_horovod=True)
+@app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy)
 def predict():
     test_set = _data.load_test_data()
     model = create_model().load(models_dir)
@@ -56,6 +56,7 @@ def predict():
 def create_model():
     return tk.pipeline.KerasModel(
         create_network_fn=create_network,
+        nfold=nfold,
         train_data_loader=MyDataLoader(mode="train"),
         refine_data_loader=MyDataLoader(mode="refine"),
         val_data_loader=MyDataLoader(mode="test"),
@@ -63,7 +64,7 @@ def create_model():
         callbacks=[tk.callbacks.CosineAnnealing()],
         models_dir=models_dir,
         on_batch_fn=_tta,
-        use_horovod=True,
+        num_replicas_in_sync=app.num_replicas_in_sync,
     )
 
 
