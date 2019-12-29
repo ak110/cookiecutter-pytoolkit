@@ -61,6 +61,7 @@ def create_model():
         refine_data_loader=MyDataLoader(mode="refine"),
         val_data_loader=MyDataLoader(mode="test"),
         epochs=1800,
+        refine_epochs=10,
         callbacks=[tk.callbacks.CosineAnnealing()],
         models_dir=models_dir,
         on_batch_fn=_tta,
@@ -149,13 +150,11 @@ def create_network() -> tf.keras.models.Model:
     )(x)
     model = tf.keras.models.Model(inputs=inputs, outputs=x)
 
-    base_lr = 1e-3
-    learning_rate = base_lr * batch_size * tk.hvd.size()
+    learning_rate = 1e-3 * batch_size * tk.hvd.size() * app.num_replicas_in_sync
     optimizer = tf.keras.optimizers.SGD(
         learning_rate=learning_rate, momentum=0.9, nesterov=True
     )
 
-    @tf.function
     def loss(y_true, logits):
         return tk.losses.categorical_crossentropy(
             y_true, logits, from_logits=True, label_smoothing=0.2
@@ -170,9 +169,7 @@ class MyDataLoader(tk.data.DataLoader):
 
     def __init__(self, mode):
         super().__init__(
-            batch_size=batch_size,
-            data_per_sample=2 if mode == "train" else 1,
-            parallel=True,
+            batch_size=batch_size, data_per_sample=2 if mode == "train" else 1,
         )
         self.mode = mode
         if self.mode == "train":
