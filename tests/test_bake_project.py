@@ -28,4 +28,4 @@ def test_project_tree(cookies):
 def test_run_flake8(cookies):
     result = cookies.bake(extra_context={"project_slug": "flake8_compat"})
     with inside_dir(str(result.project)):
-        subprocess.check_call(["flake8"])
+        subprocess.check_call(["flake8", "--config=pytoolkit/setup.cfg"])
