@@ -1,7 +1,5 @@
-cache/
-data
-data/
-models/
-.env
+/cache
+/data
+/models
 
 *___*
