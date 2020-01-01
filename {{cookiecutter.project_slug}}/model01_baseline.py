@@ -31,7 +31,7 @@ def train():
     train_set = _data.load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
     model = create_model()
-    evals = model.cv(train_set, folds, models_dir)
+    evals = model.cv(train_set, folds)
     tk.notifications.post_evals(evals)
 
 
@@ -39,7 +39,7 @@ def train():
 def validate():
     train_set = _data.load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
-    model = create_model().load(models_dir)
+    model = create_model().load()
     pred = model.predict_oof(train_set, folds)
     _data.save_oofp(models_dir, train_set, pred)
 
@@ -47,7 +47,7 @@ def validate():
 @app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy)
 def predict():
     test_set = _data.load_test_data()
-    model = create_model().load(models_dir)
+    model = create_model().load()
     pred_list = model.predict(test_set)
     pred = np.mean(pred_list, axis=0)
     _data.save_prediction(models_dir, test_set, pred)
@@ -57,13 +57,13 @@ def create_model():
     return tk.pipeline.KerasModel(
         create_network_fn=create_network,
         nfold=nfold,
+        models_dir=models_dir,
         train_data_loader=MyDataLoader(mode="train"),
         refine_data_loader=MyDataLoader(mode="refine"),
         val_data_loader=MyDataLoader(mode="test"),
         epochs=1800,
         refine_epochs=10,
         callbacks=[tk.callbacks.CosineAnnealing()],
-        models_dir=models_dir,
         on_batch_fn=_tta,
         num_replicas_in_sync=app.num_replicas_in_sync,
     )
@@ -146,7 +146,7 @@ def create_network() -> tf.keras.models.Model:
     x = blocks(512, 4)(x)
     x = tk.layers.GeM2D()(x)
     x = tf.keras.layers.Dense(
-        num_classes, kernel_regularizer=tf.keras.regularizers.l2(1e-4), name="logits",
+        num_classes, kernel_regularizer=tf.keras.regularizers.l2(1e-4)
     )(x)
     model = tf.keras.models.Model(inputs=inputs, outputs=x)
 
@@ -161,7 +161,10 @@ def create_network() -> tf.keras.models.Model:
         )
 
     tk.models.compile(model, optimizer, loss, ["acc"])
-    return model
+
+    x = tf.keras.layers.Activation("softmax")(x)
+    prediction_model = tf.keras.models.Model(inputs=inputs, outputs=x)
+    return model, prediction_model
 
 
 class MyDataLoader(tk.data.DataLoader):
@@ -211,7 +214,7 @@ class MyDataLoader(tk.data.DataLoader):
         return X, y
 
 
-def _tta(model, X_batch):
+def _tta(model: tf.keras.models.Model, X_batch: np.ndarray):
     pred_list = tk.models.predict_on_batch_augmented(
         model,
         X_batch,
