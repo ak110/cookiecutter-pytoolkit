@@ -36,7 +36,8 @@ def save_oofp(models_dir, train_set, pred):
     if tk.hvd.is_master():
         tk.utils.dump(pred, models_dir / "pred_train.pkl")
 
-        tk.evaluations.print_classification_metrics(train_set.labels, pred)
+        evals = tk.evaluations.evaluate_classification(train_set.labels, pred)
+        tk.notifications.post_evals(evals)
 
 
 def save_prediction(models_dir, test_set, pred):

@@ -31,8 +31,7 @@ def train():
     train_set = _data.load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
     model = create_model()
-    evals = model.cv(train_set, folds)
-    tk.notifications.post_evals(evals)
+    model.cv(train_set, folds)
 
 
 @app.command(then="predict", distribute_strategy_fn=tf.distribute.MirroredStrategy)
