@@ -122,14 +122,7 @@ def create_network() -> tf.keras.models.Model:
     )  # 1/2
     x = bn()(x)
     x = act()(x)
-    x = tf.keras.layers.concatenate(
-        [
-            conv2d(64, kernel_size=2, strides=2)(x),
-            conv2d(64, kernel_size=4, strides=2)(x),
-        ]
-    )  # 1/4
-    x = bn()(x)
-    x = blocks(128, 2, down=False)(x)
+    x = blocks(128, 2)(x)  # 1/4
     x = blocks(256, 4)(x)  # 1/8
     x = blocks(512, 4)(x)  # 1/16
     x = blocks(512, 4)(x)  # 1/32
