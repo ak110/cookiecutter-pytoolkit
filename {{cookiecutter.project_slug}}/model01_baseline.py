@@ -182,6 +182,7 @@ class MyDataLoader(tk.data.DataLoader):
         X, y = dataset.get_data(index)
         X = tk.ndimage.load(X)
         X = self.aug1(image=X)["image"]
+        X = tk.ndimage.ensure_channel_dim(X)
         y = tf.keras.utils.to_categorical(y, num_classes) if y is not None else None
         return X, y
 
@@ -193,6 +194,7 @@ class MyDataLoader(tk.data.DataLoader):
         else:
             X, y = super().get_sample(data)
         X = tk.ndimage.preprocess_tf(X)
+        X = tk.ndimage.ensure_channel_dim(X)
         return X, y
 
 
