@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""ベースライン。"""
 import functools
 import pathlib
 
@@ -21,9 +22,27 @@ logger = tk.log.get(__name__)
 
 
 @app.command(logfile=False)
-def check():
-    _ = _data.load_data()  # 動作確認用に呼ぶだけ呼んでおく
+def check_model():  # utility
     create_model().check()
+
+
+@app.command(logfile=False)
+def check_data():  # utility
+    check_set = _data.load_check_data()
+    it = create_model().train_data_loader.iter(check_set, shuffle=True)
+    i = 0
+    for X_batch, y_batch in it.ds.take(256 // batch_size):
+        for X_i, y_i in zip(X_batch.numpy(), y_batch):
+            save_path = models_dir / "check-data" / f"{i:03d}.jpg"
+            i += 1
+            img = np.uint8((X_i + 1) * 127.5)  # tk.ndimage.preprocess_tf()の逆変換
+            tk.ndimage.save(save_path, img)
+            logger.info(f"{save_path}: y={y_i}")
+
+
+@app.command(logfile=None)
+def migrate():  # utility
+    create_model().load().save()
 
 
 @app.command(then="validate", distribute_strategy_fn=tf.distribute.MirroredStrategy)

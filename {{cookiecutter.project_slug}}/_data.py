@@ -16,6 +16,12 @@ def load_data():
     return load_train_data(), load_test_data()
 
 
+# @tk.cache.memorize(cache_dir)
+def load_check_data():
+    """チェック用データの読み込み"""
+    return load_train_data().slice(list(range(32)))
+
+
 @tk.cache.memorize(cache_dir)
 def load_train_data():
     """訓練データの読み込み"""
