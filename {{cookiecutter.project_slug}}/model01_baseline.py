@@ -180,8 +180,7 @@ class MyDataLoader(tk.data.DataLoader):
             self.aug1 = A.Compose(
                 [
                     tk.image.RandomTransform(
-                        width=train_shape[1],
-                        height=train_shape[0],
+                        size=train_shape[:2],
                         base_scale=predict_shape[0] / train_shape[0],
                     ),
                     tk.image.RandomColorAugmentors(noisy=True),
@@ -189,9 +188,7 @@ class MyDataLoader(tk.data.DataLoader):
             )
             self.aug2 = tk.image.RandomErasing()
         elif self.mode == "refine":
-            self.aug1 = tk.image.RandomTransform.create_refine(
-                width=predict_shape[1], height=predict_shape[0]
-            )
+            self.aug1 = tk.image.RandomTransform.create_refine(size=predict_shape[:2])
             self.aug2 = None
         else:
             self.aug1 = tk.image.Resize(width=predict_shape[1], height=predict_shape[0])
