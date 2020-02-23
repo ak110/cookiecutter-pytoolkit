@@ -207,10 +207,10 @@ class MyDataLoader(tk.data.DataLoader):
             sample1, sample2 = data
             X, y = tk.ndimage.mixup(sample1, sample2, mode="beta")
             X = self.aug2(image=X)["image"]
+            X = tk.ndimage.ensure_channel_dim(X)
         else:
             X, y = super().get_sample(data)
         X = tk.ndimage.preprocess_tf(X)
-        X = tk.ndimage.ensure_channel_dim(X)
         return X, y
 
 
