@@ -1,14 +1,26 @@
 #!/usr/bin/env python3
-"""ベースライン。"""
-import functools
-import pathlib
+# region imports
 
-import albumentations as A
-import numpy as np
-import tensorflow as tf
+# pylint: disable=unused-import
+
+import functools  # noqa: F401
+import pathlib  # noqa: F401
+import random  # noqa: F401
+
+import albumentations as A  # noqa: F401
+import numpy as np  # noqa: F401
+import pandas as pd  # noqa: F401
+import sklearn.datasets  # noqa: F401
+import sklearn.ensemble  # noqa: F401
+import sklearn.linear_model  # noqa: F401
+import sklearn.metrics  # noqa: F401
+import sklearn.model_selection  # noqa: F401
+import tensorflow as tf  # noqa: F401
 
 import _data
 import pytoolkit as tk
+
+# endregion
 
 num_classes = 10
 train_shape = (320, 320, 3)
@@ -19,6 +31,27 @@ split_seed = 1
 models_dir = pathlib.Path(f"models/{pathlib.Path(__file__).stem}")
 app = tk.cli.App(output_dir=models_dir)
 logger = tk.log.get(__name__)
+
+
+def create_model():
+    return tk.pipeline.KerasModel(
+        create_network_fn=create_network,
+        score_fn=score,
+        nfold=nfold,
+        models_dir=models_dir,
+        train_data_loader=MyDataLoader(mode="train"),
+        refine_data_loader=MyDataLoader(mode="refine"),
+        val_data_loader=MyDataLoader(mode="test"),
+        epochs=1800,
+        refine_epochs=10,
+        base_models_dir=None,
+        callbacks=[tk.callbacks.CosineAnnealing()],
+        on_batch_fn=tta,
+        num_replicas_in_sync=app.num_replicas_in_sync,
+    )
+
+
+# region commands
 
 
 @app.command(logfile=False)
@@ -40,12 +73,12 @@ def check_data():  # utility
             logger.info(f"{save_path}: y={y_i}")
 
 
-@app.command(logfile=None)
+@app.command(logfile=False)
 def migrate():  # utility
     create_model().load().save()
 
 
-@app.command(then="validate", distribute_strategy_fn=tf.distribute.MirroredStrategy)
+@app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy)
 def train():
     train_set = _data.load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
@@ -53,7 +86,7 @@ def train():
     model.cv(train_set, folds)
 
 
-@app.command(then="predict", distribute_strategy_fn=tf.distribute.MirroredStrategy)
+@app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy)
 def validate():
     train_set = _data.load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
@@ -71,23 +104,10 @@ def predict():
     _data.save_prediction(models_dir, test_set, pred)
 
 
-def create_model():
-    return tk.pipeline.KerasModel(
-        create_network_fn=create_network,
-        nfold=nfold,
-        models_dir=models_dir,
-        train_data_loader=MyDataLoader(mode="train"),
-        refine_data_loader=MyDataLoader(mode="refine"),
-        val_data_loader=MyDataLoader(mode="test"),
-        epochs=1800,
-        refine_epochs=10,
-        callbacks=[tk.callbacks.CosineAnnealing()],
-        on_batch_fn=_tta,
-        num_replicas_in_sync=app.num_replicas_in_sync,
-    )
+# endregion
 
 
-def create_network() -> tf.keras.models.Model:
+def create_network():
     conv2d = functools.partial(
         tf.keras.layers.Conv2D,
         kernel_size=3,
@@ -141,7 +161,7 @@ def create_network() -> tf.keras.models.Model:
     )  # 1/2
     x = bn()(x)
     x = act()(x)
-    x = blocks(128, 2)(x)  # 1/4
+    x = blocks(128, 4)(x)  # 1/4
     x = blocks(256, 4)(x)  # 1/8
     x = blocks(512, 4)(x)  # 1/16
     x = blocks(512, 4)(x)  # 1/32
@@ -214,7 +234,7 @@ class MyDataLoader(tk.data.DataLoader):
         return X, y
 
 
-def _tta(model: tf.keras.models.Model, X_batch: np.ndarray):
+def tta(model: tf.keras.models.Model, X_batch: np.ndarray):
     pred_list = tk.models.predict_on_batch_augmented(
         model,
         X_batch,
@@ -224,6 +244,12 @@ def _tta(model: tf.keras.models.Model, X_batch: np.ndarray):
         padding_mode="edge",
     )
     return np.mean(pred_list, axis=0)
+
+
+def score(
+    y_true: tk.data.LabelsType, y_pred: tk.models.ModelIOType
+) -> tk.evaluations.EvalsType:
+    return tk.evaluations.evaluate_classification(y_true, y_pred)
 
 
 if __name__ == "__main__":
