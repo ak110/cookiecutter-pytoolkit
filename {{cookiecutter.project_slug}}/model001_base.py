@@ -15,7 +15,9 @@ import sklearn.ensemble  # noqa: F401
 import sklearn.linear_model  # noqa: F401
 import sklearn.metrics  # noqa: F401
 import sklearn.model_selection  # noqa: F401
+import sklearn.neighbors  # noqa: F401
 import tensorflow as tf  # noqa: F401
+import tensorflow_addons as tfa  # noqa: F401
 
 import _data
 import pytoolkit as tk
@@ -47,21 +49,46 @@ def create_model():
         base_models_dir=None,
         callbacks=[tk.callbacks.CosineAnnealing()],
         on_batch_fn=tta,
-        num_replicas_in_sync=app.num_replicas_in_sync,
     )
 
+
+# region data/score
+
+
+def load_check_data():
+    dataset = _data.load_check_data()
+    return dataset
+
+
+def load_train_data():
+    dataset = _data.load_train_data()
+    return dataset
+
+
+def load_test_data():
+    dataset = _data.load_test_data()
+    return dataset
+
+
+def score(
+    y_true: tk.data.LabelsType, y_pred: tk.models.ModelIOType
+) -> tk.evaluations.EvalsType:
+    return tk.evaluations.evaluate_classification(y_true, y_pred)
+
+
+# endregion
 
 # region commands
 
 
 @app.command(logfile=False)
-def check_model():  # utility
-    create_model().check()
+def check():  # utility
+    create_model().check(load_check_data())
 
 
 @app.command(logfile=False)
 def check_data():  # utility
-    check_set = _data.load_check_data()
+    check_set = load_check_data()
     it = create_model().train_data_loader.iter(check_set, shuffle=True)
     i = 0
     for X_batch, y_batch in it.ds.take(256 // batch_size):
@@ -79,29 +106,44 @@ def migrate():  # utility
 
 
 @app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy)
-def train():
-    train_set = _data.load_train_data()
+def train_one():
+    train_set = load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
     model = create_model()
-    model.cv(train_set, folds)
+    model.skip_folds = list(range(1, nfold))
+    evals = model.cv(train_set, folds)
+    tk.notifications.post_evals(evals)
 
 
-@app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy)
+@app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy, then="validate")
+def train():
+    train_set = load_train_data()
+    folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
+    model = create_model()
+    evals = model.cv(train_set, folds)
+    tk.notifications.post_evals(evals)
+
+
+@app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy, then="predict")
 def validate():
-    train_set = _data.load_train_data()
+    train_set = load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
     model = create_model().load()
     pred = model.predict_oof(train_set, folds)
-    _data.save_oofp(models_dir, train_set, pred)
+    if tk.hvd.is_master():
+        tk.utils.dump(pred, models_dir / "pred_train.pkl")
+        tk.notifications.post_evals(score(train_set.labels, pred))
 
 
 @app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy)
 def predict():
-    test_set = _data.load_test_data()
+    test_set = load_test_data()
     model = create_model().load()
-    pred_list = model.predict(test_set)
+    pred_list = model.predict_all(test_set)
     pred = np.mean(pred_list, axis=0)
-    _data.save_prediction(models_dir, test_set, pred)
+    if tk.hvd.is_master():
+        tk.utils.dump(pred_list, models_dir / "pred_test.pkl")
+        _data.save_prediction(models_dir, test_set, pred)
 
 
 # endregion
@@ -189,8 +231,6 @@ def create_network():
 
 
 class MyDataLoader(tk.data.DataLoader):
-    """DataLoader"""
-
     def __init__(self, mode):
         super().__init__(
             batch_size=batch_size, data_per_sample=2 if mode == "train" else 1,
@@ -218,7 +258,6 @@ class MyDataLoader(tk.data.DataLoader):
         X, y = dataset.get_data(index)
         X = tk.ndimage.load(X)
         X = self.aug1(image=X)["image"]
-        X = tk.ndimage.ensure_channel_dim(X)
         y = tf.keras.utils.to_categorical(y, num_classes) if y is not None else None
         return X, y
 
@@ -227,7 +266,6 @@ class MyDataLoader(tk.data.DataLoader):
             sample1, sample2 = data
             X, y = tk.ndimage.mixup(sample1, sample2, mode="beta")
             X = self.aug2(image=X)["image"]
-            X = tk.ndimage.ensure_channel_dim(X)
         else:
             X, y = super().get_sample(data)
         X = tk.ndimage.preprocess_tf(X)
@@ -246,11 +284,6 @@ def tta(model: tf.keras.models.Model, X_batch: np.ndarray):
     return np.mean(pred_list, axis=0)
 
 
-def score(
-    y_true: tk.data.LabelsType, y_pred: tk.models.ModelIOType
-) -> tk.evaluations.EvalsType:
-    return tk.evaluations.evaluate_classification(y_true, y_pred)
-
-
 if __name__ == "__main__":
+    # app.run(default="train_one")
     app.run(default="train")
