@@ -246,7 +246,7 @@ class MyDataLoader(tk.data.DataLoader):
                     tk.image.RandomColorAugmentors(noisy=True),
                 ]
             )
-            self.aug2 = tk.image.RandomErasing()
+            self.aug2 = tk.image.GridMask(random_color=True)
         elif self.mode == "refine":
             self.aug1 = tk.image.RandomTransform.create_refine(size=predict_shape[:2])
             self.aug2 = None
