@@ -6,6 +6,7 @@
 import functools  # noqa: F401
 import pathlib  # noqa: F401
 import random  # noqa: F401
+import typing  # noqa: F401
 
 import albumentations as A  # noqa: F401
 import numpy as np  # noqa: F401
@@ -246,7 +247,7 @@ class MyDataLoader(tk.data.DataLoader):
                     tk.image.RandomColorAugmentors(noisy=True),
                 ]
             )
-            self.aug2 = tk.image.GridMask(random_color=True)
+            self.aug2: typing.Any = tk.image.GridMask(random_color=True)
         elif self.mode == "refine":
             self.aug1 = tk.image.RandomTransform.create_refine(size=predict_shape[:2])
             self.aug2 = None
@@ -261,7 +262,7 @@ class MyDataLoader(tk.data.DataLoader):
         y = tf.keras.utils.to_categorical(y, num_classes) if y is not None else None
         return X, y
 
-    def get_sample(self, data: list) -> tuple:
+    def get_sample(self, data):
         if self.mode == "train":
             sample1, sample2 = data
             X, y = tk.ndimage.mixup(sample1, sample2, mode="beta")
