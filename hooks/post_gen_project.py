@@ -6,7 +6,7 @@ def _main():
     # pytoolkitを追加してInitial commit
     subprocess.run("git init", shell=True, check=True)
     subprocess.run(
-        "git submodule add https://github.com/ak110/pytoolkit.git",
+        "git submodule add https://github.com/ak110/pytoolkit.git pytoolkit.git",
         shell=True,
         check=True,
     )

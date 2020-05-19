@@ -1,2 +1,2 @@
 # 開発用
-/{{cookiecutter.project_slug}}/pytoolkit
+/{{cookiecutter.project_slug}}/pytoolkit.git

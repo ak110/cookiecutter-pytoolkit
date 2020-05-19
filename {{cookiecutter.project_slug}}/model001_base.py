@@ -237,6 +237,7 @@ class MyDataLoader(tk.data.DataLoader):
             batch_size=batch_size, data_per_sample=2 if mode == "train" else 1,
         )
         self.mode = mode
+        self.aug2: typing.Any = None
         if self.mode == "train":
             self.aug1 = A.Compose(
                 [
