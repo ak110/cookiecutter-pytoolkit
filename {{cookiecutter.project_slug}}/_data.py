@@ -6,8 +6,8 @@ import pandas as pd
 
 import pytoolkit as tk
 
-data_dir = pathlib.Path(f"data")
-cache_dir = pathlib.Path(f"cache")
+data_dir = pathlib.Path("data")
+cache_dir = pathlib.Path("cache")
 logger = tk.log.get(__name__)
 
 

@@ -10,11 +10,13 @@ def _main():
         shell=True,
         check=True,
     )
+    subprocess.run("ln -s pytoolkit.git/pytoolkit", shell=True, check=True)
     subprocess.run("git add -A", shell=True, check=True)
     subprocess.run('git commit -m "Initial commit."', shell=True, check=True)
-    # git commit時にflake8する設定
-    subprocess.run("flake8 --install-hook=git", shell=True, check=True)
-    subprocess.run("flake8 --install-hook=git", shell=True, check=True, cwd="pytoolkit")
+
+    # pre-commit
+    subprocess.run("pre-commit install", shell=True, check=False)
+    subprocess.run("pre-commit install", shell=True, check=False, cwd="pytoolkit")
 
 
 if __name__ == "__main__":
