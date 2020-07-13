@@ -1,4 +1,5 @@
 cookiecutter
 flake8
+flake8-bugbear
 pytest
 pytest-cookies
