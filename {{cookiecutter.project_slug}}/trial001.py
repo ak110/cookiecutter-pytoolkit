@@ -20,7 +20,6 @@ import sklearn.neighbors  # noqa: F401
 import tensorflow as tf  # noqa: F401
 import tensorflow_addons as tfa  # noqa: F401
 
-import _data
 import pytoolkit as tk
 
 # endregion
@@ -32,7 +31,10 @@ batch_size = 16
 nfold = 5
 split_seed = 1
 models_dir = pathlib.Path(f"models/{pathlib.Path(__file__).stem}")
-app = tk.cli.App(output_dir=models_dir)
+cache_dir = pathlib.Path(f"cache/{pathlib.Path(__file__).stem}")
+app = tk.cli.App(
+    output_dir=models_dir, distribute_strategy_fn=tf.distribute.MirroredStrategy
+)
 logger = tk.log.get(__name__)
 
 
@@ -56,19 +58,33 @@ def create_model():
 # region data/score
 
 
+# @tk.cache.memoize(cache_dir)
 def load_check_data():
-    dataset = _data.load_check_data()
-    return dataset
+    """チェック用データの読み込み"""
+    return load_train_data().slice(list(range(32)))
 
 
+@tk.cache.memoize(cache_dir)
 def load_train_data():
-    dataset = _data.load_train_data()
-    return dataset
+    """訓練データの読み込み"""
+    X_train = None  # TODO
+    y_train = None  # TODO
+    return tk.data.Dataset(X_train, y_train)
 
 
+@tk.cache.memoize(cache_dir)
 def load_test_data():
-    dataset = _data.load_test_data()
-    return dataset
+    """テストデータの読み込み"""
+    X_test = None  # TODO
+    return tk.data.Dataset(X_test)
+
+
+def save_prediction(test_set, pred):
+    """テストデータの予測結果の保存"""
+    df = pd.DataFrame()
+    df["id"] = test_set.ids  # np.arange(1, len(test_set) + 1)
+    df["y"] = pred.argmax(axis=-1)
+    df.to_csv(models_dir / "submission.csv", index=False)
 
 
 def score(
@@ -116,7 +132,7 @@ def train_one():
     tk.notifications.post_evals(evals)
 
 
-@app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy, then="validate")
+@app.command(then="validate")
 def train():
     train_set = load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
@@ -125,7 +141,7 @@ def train():
     tk.notifications.post_evals(evals)
 
 
-@app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy, then="predict")
+@app.command(then="predict")
 def validate():
     train_set = load_train_data()
     folds = tk.validation.split(train_set, nfold, stratify=True, split_seed=split_seed)
@@ -136,7 +152,7 @@ def validate():
         tk.notifications.post_evals(score(train_set.labels, pred))
 
 
-@app.command(distribute_strategy_fn=tf.distribute.MirroredStrategy)
+@app.command()
 def predict():
     test_set = load_test_data()
     model = create_model().load()
@@ -144,7 +160,7 @@ def predict():
     pred = np.mean(pred_list, axis=0)
     if tk.hvd.is_master():
         tk.utils.dump(pred_list, models_dir / "pred_test.pkl")
-        _data.save_prediction(models_dir, test_set, pred)
+        save_prediction(test_set, pred)
 
 
 # endregion
