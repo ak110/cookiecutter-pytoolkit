@@ -1,0 +1,4 @@
+
+[tool.black]
+target-version = ['py38']
+skip-magic-trailing-comma = true

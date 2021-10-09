@@ -19,9 +19,10 @@ jobs:
         pip install -r requirements-dev.txt
 
     - name: Test with pytest
+      env:
+        _PYTOOLKIT_URL: https://github.com/ak110/pytoolkit.git
       run: |
         git config --global user.email "test@example.com"
         git config --global user.name "test"
         git config --global init.defaultBranch "master"
-        ssh-keygen -f ~/.ssh/id_rsa -N ""
         pytest
