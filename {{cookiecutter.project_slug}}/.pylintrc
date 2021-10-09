@@ -1,37 +1,32 @@
 [MASTER]
 extension-pkg-whitelist=numpy,cv2
+# workaround: https://github.com/PyCQA/pylint/issues/3836
+init-hook='import sys; sys.setrecursionlimit(3 * sys.getrecursionlimit())'
 
 [MESSAGES CONTROL]
 disable=
     bad-continuation,
     broad-except,
     duplicate-code,
-    fixme,
-    global-statement,
     import-outside-toplevel,
     invalid-name,
     invalid-unary-operand-type,  # for tf.Tensor
-    len-as-condition,
-    logging-format-interpolation,
-    missing-docstring,
+    logging-fstring-interpolation,
+    missing-function-docstring,
     no-else-return,
     no-self-use,
+    no-value-for-parameter,  # TF 2.2 False Positive
     too-few-public-methods,
     too-many-ancestors,
     too-many-arguments,
-    too-many-branches,
     too-many-instance-attributes,
-    too-many-lines,
     too-many-locals,
-    too-many-nested-blocks,
-    too-many-return-statements,
     too-many-statements,
+    unexpected-keyword-arg,  # TF 2.2 False Positive
     using-constant-test,
 
 [FORMAT]
 max-line-length=256
 
 [TYPECHECK]
-ignored-modules=
-    mpi4py.MPI,
-    vmprof,
+generated-members=torch.*
